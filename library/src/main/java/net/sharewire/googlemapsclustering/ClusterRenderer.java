@@ -32,9 +32,11 @@ class ClusterRenderer<T extends ClusterItem> implements GoogleMap.OnMarkerClickL
 
     private final List<Cluster<T>> mClusters = new ArrayList<>();
 
-    private final Map<Cluster<T>, Marker> mMarkers = new HashMap<>();
+    private final Map<Cluster<T>, MarkerState> mMarkers = new HashMap<>();
 
     private IconGenerator<T> mIconGenerator;
+
+    private RenderPostProcessor<T> mRenderPostProcessor;
 
     private ClusterManager.Callbacks<T> mCallbacks;
 
@@ -42,6 +44,7 @@ class ClusterRenderer<T extends ClusterItem> implements GoogleMap.OnMarkerClickL
         mGoogleMap = googleMap;
         mGoogleMap.setOnMarkerClickListener(this);
         mIconGenerator = new DefaultIconGenerator<>(context);
+        mRenderPostProcessor = new DefaultRenderPostProcessor<>();
     }
 
     @Override
@@ -73,6 +76,10 @@ class ClusterRenderer<T extends ClusterItem> implements GoogleMap.OnMarkerClickL
         mIconGenerator = iconGenerator;
     }
 
+    void setRenderPostProcessor(@NonNull RenderPostProcessor<T> renderPostProcessor) {
+        mRenderPostProcessor = renderPostProcessor;
+    }
+
     void render(@NonNull List<Cluster<T>> clusters) {
         List<Cluster<T>> clustersToAdd = new ArrayList<>();
         List<Cluster<T>> clustersToRemove = new ArrayList<>();
@@ -94,7 +101,7 @@ class ClusterRenderer<T extends ClusterItem> implements GoogleMap.OnMarkerClickL
 
         // Remove the old clusters.
         for (Cluster<T> clusterToRemove : clustersToRemove) {
-            Marker markerToRemove = mMarkers.get(clusterToRemove);
+            Marker markerToRemove = mMarkers.get(clusterToRemove).getMarker();
             markerToRemove.setZIndex(BACKGROUND_MARKER_Z_INDEX);
 
             Cluster<T> parentCluster = findParentCluster(mClusters, clusterToRemove.getLatitude(),
@@ -140,7 +147,20 @@ class ClusterRenderer<T extends ClusterItem> implements GoogleMap.OnMarkerClickL
             }
             markerToAdd.setTag(clusterToAdd);
 
-            mMarkers.put(clusterToAdd, markerToAdd);
+            mMarkers.put(clusterToAdd, new MarkerState(markerToAdd));
+        }
+
+        for (Map.Entry<Cluster<T>, MarkerState> item : mMarkers.entrySet()) {
+            Cluster<T> cluster = item.getKey();
+            MarkerState markerState = item.getValue();
+
+            boolean isPostProcessed = mRenderPostProcessor.postProcess(markerState.getMarker(), cluster);
+            if (isPostProcessed) {
+                markerState.setDirty(true);
+            } else if (markerState.isDirty()) {
+                markerState.getMarker().setIcon(getMarkerIcon(cluster));
+                markerState.setDirty(false);
+            }
         }
     }
 

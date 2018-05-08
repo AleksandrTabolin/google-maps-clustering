@@ -94,6 +94,11 @@ public class ClusterManager<T extends ClusterItem> implements GoogleMap.OnCamera
         mRenderer.setIconGenerator(iconGenerator);
     }
 
+    public void setRenderPostProcessor(@NonNull RenderPostProcessor<T> renderPostProcessor) {
+        checkNotNull(renderPostProcessor);
+        mRenderer.setRenderPostProcessor(renderPostProcessor);
+    }
+
     /**
      * Sets a callback that's invoked when a cluster or a cluster item is clicked.
      *
@@ -136,7 +141,7 @@ public class ClusterManager<T extends ClusterItem> implements GoogleMap.OnCamera
         mQuadTreeTask = new QuadTreeTask(clusterItems).executeOnExecutor(mExecutor);
     }
 
-    private void cluster() {
+    public void cluster() {
         if (mClusterTask != null) {
             mClusterTask.cancel(true);
         }
